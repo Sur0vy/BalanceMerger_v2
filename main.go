@@ -4,29 +4,67 @@ import (
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/dialog"
+	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 )
 
 func main() {
+	run()
+}
+
+func run() {
 	a := app.New()
 	w := a.NewWindow("Списание V2.0")
-	w.Resize(fyne.NewSize(500, 250))
+	initGUI(w)
+	w.ShowAndRun()
+}
+
+func initGUI(w fyne.Window) {
+	w.Resize(fyne.NewSize(600, 500))
 
 	//журнал
 	lblJournal := widget.Label{Text: "Журнал:"}
 	entJournal := widget.Entry{PlaceHolder: "Файл журнала (*.xlsx)"}
-	btnJournal := widget.Button{Icon: theme.FolderOpenIcon()}
+	btnJournal := widget.NewButton("", func() {
+		dlgJournal := dialog.NewFileOpen(
+			func(r fyne.URIReadCloser, _ error) {
+				entJournal.SetText(r.URI().Path())
+			}, w)
+		dlgJournal.SetFilter(
+			storage.NewExtensionFileFilter([]string{".xlsx"}))
+		dlgJournal.Show()
+	})
+	btnJournal.SetIcon(theme.FolderOpenIcon())
 
 	//баланс
 	lblBalance := widget.Label{Text: "Баланс:"}
 	entBalance := widget.Entry{PlaceHolder: "Файл журнала (*.xlsx)"}
-	btnBalance := widget.Button{Icon: theme.FolderOpenIcon()}
+	btnBalance := widget.NewButton("", func() {
+		dlgBalance := dialog.NewFileOpen(
+			func(r fyne.URIReadCloser, _ error) {
+				entBalance.SetText(r.URI().Path())
+			}, w)
+		dlgBalance.SetFilter(
+			storage.NewExtensionFileFilter([]string{".xlsx"}))
+		dlgBalance.Show()
+	})
+	btnBalance.SetIcon(theme.FolderOpenIcon())
 
 	//карточка
 	lblCard := widget.Label{Text: "Карточка счета:"}
 	entCard := widget.Entry{PlaceHolder: "Файл журнала (*.xlsx)"}
-	btnCard := widget.Button{Icon: theme.FolderOpenIcon()}
+	btnCard := widget.NewButton("", func() {
+		dlgCard := dialog.NewFileOpen(
+			func(r fyne.URIReadCloser, _ error) {
+				entCard.SetText(r.URI().Path())
+			}, w)
+		dlgCard.SetFilter(
+			storage.NewExtensionFileFilter([]string{".xlsx"}))
+		dlgCard.Show()
+	})
+	btnCard.SetIcon(theme.FolderOpenIcon())
 
 	//Результат
 	btnProcess := widget.Button{Text: "Обработать", Icon: theme.ConfirmIcon()}
@@ -59,9 +97,9 @@ func main() {
 					&lblCard,
 				),
 				container.NewVBox(
-					&btnJournal,
-					&btnBalance,
-					&btnCard,
+					btnJournal,
+					btnBalance,
+					btnCard,
 				),
 				container.NewVBox(
 					&entJournal,
@@ -82,5 +120,4 @@ func main() {
 			),
 		),
 	))
-	w.ShowAndRun()
 }
