@@ -10,6 +10,8 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
+var src Sources
+
 func main() {
 	run()
 }
@@ -21,6 +23,11 @@ func run() {
 	w.ShowAndRun()
 }
 
+func processDocuments() {
+	//todo: проверить существование файлов
+	StartProcess(src)
+}
+
 func initGUI(w fyne.Window) {
 	w.Resize(fyne.NewSize(600, 500))
 
@@ -30,10 +37,11 @@ func initGUI(w fyne.Window) {
 	btnJournal := widget.NewButton("", func() {
 		dlgJournal := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				entJournal.SetText(r.URI().Path())
+				src.journal = r.URI().Path()
+				entJournal.SetText(src.journal)
 			}, w)
 		dlgJournal.SetFilter(
-			storage.NewExtensionFileFilter([]string{".xlsx"}))
+			storage.NewExtensionFileFilter([]string{".xlsx", ".csv"}))
 		dlgJournal.Show()
 	})
 	btnJournal.SetIcon(theme.FolderOpenIcon())
@@ -44,7 +52,8 @@ func initGUI(w fyne.Window) {
 	btnBalance := widget.NewButton("", func() {
 		dlgBalance := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				entBalance.SetText(r.URI().Path())
+				src.balance = r.URI().Path()
+				entBalance.SetText(src.balance)
 			}, w)
 		dlgBalance.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
@@ -58,7 +67,8 @@ func initGUI(w fyne.Window) {
 	btnCard := widget.NewButton("", func() {
 		dlgCard := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				entCard.SetText(r.URI().Path())
+				src.card = r.URI().Path()
+				entCard.SetText(src.card)
 			}, w)
 		dlgCard.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
@@ -68,6 +78,7 @@ func initGUI(w fyne.Window) {
 
 	//Результат
 	btnProcess := widget.Button{Text: "Обработать", Icon: theme.ConfirmIcon()}
+	btnProcess.OnTapped = processDocuments
 	btnExt := widget.Button{Text: "Закрыть"}
 	btnExt.OnTapped = func() {
 		w.Close()
