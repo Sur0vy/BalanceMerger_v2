@@ -1,6 +1,7 @@
 package main
 
 import (
+	"BM/Models"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -10,7 +11,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-var src Sources
+var src Models.Sources
 
 func main() {
 	run()
@@ -37,8 +38,8 @@ func initGUI(w fyne.Window) {
 	btnJournal := widget.NewButton("", func() {
 		dlgJournal := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				src.journal = r.URI().Path()
-				entJournal.SetText(src.journal)
+				src.Journal = r.URI().Path()
+				entJournal.SetText(src.Journal)
 			}, w)
 		dlgJournal.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx", ".csv"}))
@@ -52,8 +53,8 @@ func initGUI(w fyne.Window) {
 	btnBalance := widget.NewButton("", func() {
 		dlgBalance := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				src.balance = r.URI().Path()
-				entBalance.SetText(src.balance)
+				src.Balance = r.URI().Path()
+				entBalance.SetText(src.Balance)
 			}, w)
 		dlgBalance.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
@@ -67,8 +68,8 @@ func initGUI(w fyne.Window) {
 	btnCard := widget.NewButton("", func() {
 		dlgCard := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				src.card = r.URI().Path()
-				entCard.SetText(src.card)
+				src.Card = r.URI().Path()
+				entCard.SetText(src.Card)
 			}, w)
 		dlgCard.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
