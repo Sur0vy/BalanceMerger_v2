@@ -1,24 +1,24 @@
 package journal
 
 import (
-	"BM/Models"
-	"container/list"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/xuri/excelize/v2"
+
+	"BM/Models"
 )
 
 type JournalMem struct {
 	fileName string
-	items    *list.List
+	items    map[int]*ItemMem
 }
 
 type Journal interface {
 	GetItemsCount() int
 	LoadFromFile(fileName string) bool
-	HasItem(name string, rest float64, indexes *list.List) Models.ItemState
+	HasItem(name string, rest float64) (Models.ItemState, *[]int)
 	GetItem(idx int) *Item
 	findField(field string, row int, f *excelize.File) int
 	findRow(field string, f *excelize.File) int
@@ -26,7 +26,8 @@ type Journal interface {
 
 func NewJournal() *JournalMem {
 	return &JournalMem{
-		items: list.New(),
+		fileName: "",
+		items:    make(map[int]*ItemMem),
 	}
 }
 
@@ -55,7 +56,7 @@ func (j *JournalMem) LoadFromFile(fileName string) bool {
 	i := 0
 	for i < tryCnt {
 		row++
-		//document :=
+
 		cell, _ := excelize.CoordinatesToCellName(iDoc, row)
 		doc, _ := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
 		if doc != "" {
@@ -63,7 +64,7 @@ func (j *JournalMem) LoadFromFile(fileName string) bool {
 			for {
 				row++
 
-				var item Item = NewItem()
+				item := NewItem()
 				item.SetDocument(doc)
 
 				cell, _ := excelize.CoordinatesToCellName(iAmount, row)
@@ -89,7 +90,7 @@ func (j *JournalMem) LoadFromFile(fileName string) bool {
 				item.SetDescription(desc)
 
 				if item.GetDescription() != "" {
-					j.items.PushBack(item)
+					j.items[j.GetItemsCount()] = item
 				}
 			}
 		} else {
@@ -160,64 +161,41 @@ func (j *JournalMem) findRow(field string, f *excelize.File) int {
 }
 
 func (j *JournalMem) GetItemsCount() int {
-	return j.items.Len()
+	return len(j.items)
 }
 
-func (j *JournalMem) GetItem(idx int) *Item {
-	i := 0
-	for e := j.items.Front(); e != nil; e = e.Next() {
-		if i == idx {
-			return e.Value.(*Item)
-		}
-		i++
+func (j *JournalMem) GetItem(idx int) *ItemMem {
+	item, ok := j.items[idx]
+	if ok {
+		return item
+	} else {
+		return nil
 	}
-	return nil
 }
 
-//func (j *JournalMem) HasItem(name string, rest float64, indexes *list.List) Models.ItemState {
-//	var index int
-//	for e := j.items.Front(); e != nil; e = e.Next() {
-//		itm := e.Value.(*Item)
-//		//index = e.Value.(*Item)
-//	}
-//}
-
-/*   public ItemState HasItem(string name, double rest, ref List<int> indexes)
-     {
-         int index;
-         for (int i = 0; i < items.Count; i++)
-         {
-             index = items[i].Description.IndexOf(name);
-             if (index > -1)
-             {
-                 indexes.Add(i);
-                 if (items[indexes[0]].Rest == rest)
-                     return ItemState.isFound;
-             }
-         }
-         if (indexes.Count == 0)
-         {
-             return ItemState.isMissing;
-         }
-         else if (indexes.Count == 1)
-         {
-             return ItemState.isDifBalance;
-         }
-         else
-         {
-             double b = 0;
-             for (int i = 0; i < indexes.Count; i++)
-             {
-                 b = b + GetItem(indexes[i]).Rest;
-             }
-             if (b == rest)
-             {
-                 return ItemState.isCollect;
-             }
-             else
-             {
-                 return ItemState.isCollectMissing;
-             }
-         }
-     }
-*/
+func (j *JournalMem) HasItem(name string, rest float64) (Models.ItemState, *[]int) {
+	indexes := []int{}
+	for i, val := range j.items {
+		if strings.ContainsAny(val.GetDescription(), name) {
+			indexes = append(indexes, i)
+			if val.GetRest() == rest {
+				return Models.IsFound, &indexes
+			}
+		}
+	}
+	if len(indexes) == 0 {
+		return Models.IsMissing, &indexes
+	} else if len(indexes) == 1 {
+		return Models.IsDifBalance, &indexes
+	} else {
+		b := 0.0
+		for i := range indexes {
+			b += j.GetItem(i).GetRest()
+		}
+		if b == rest {
+			return Models.IsCollect, &indexes
+		} else {
+			return Models.IsCollectMissing, &indexes
+		}
+	}
+}
