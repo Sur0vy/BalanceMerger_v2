@@ -1,6 +1,7 @@
 package journal
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,7 +18,7 @@ type JournalMem struct {
 
 type Journal interface {
 	GetItemsCount() int
-	LoadFromFile(fileName string) bool
+	LoadFromFile(fileName string) error
 	HasItem(name string, rest float64) (Models.ItemState, *[]int)
 	GetItem(idx int) *Item
 	findField(field string, row int, f *excelize.File) int
@@ -31,27 +32,27 @@ func NewJournal() *JournalMem {
 	}
 }
 
-func (j *JournalMem) LoadFromFile(fileName string) bool {
+func (j *JournalMem) LoadFromFile(fileName string) error {
 	xlsx, err := excelize.OpenFile(fileName)
 	if err != nil {
 		fmt.Println(err)
-		return false
+		return errors.New("file is corrupted")
 	}
 	row := j.findRow(fldContent, xlsx)
 	if row == -1 {
-		return false
+		return errors.New("file read error")
 	}
 	iCont := j.findField(fldContent, row, xlsx)
 	if iCont == -1 {
-		return false
+		return errors.New("file read error")
 	}
 	iDoc := j.findField(fldDoc, row, xlsx)
 	if iDoc == -1 {
-		return false
+		return errors.New("file read error")
 	}
 	iAmount := j.findField(fldAmount, row, xlsx)
 	if iAmount == -1 {
-		return false
+		return errors.New("file read error")
 	}
 	i := 0
 	for i < tryCnt {
@@ -68,18 +69,18 @@ func (j *JournalMem) LoadFromFile(fileName string) bool {
 				item.SetDocument(doc)
 
 				cell, _ := excelize.CoordinatesToCellName(iAmount, row)
-				restStr, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
+				amountStr, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
 				if err != nil {
 					row--
 					break
 				}
-				rest, err := strconv.ParseFloat(restStr, 64)
+				amount, err := strconv.ParseFloat(amountStr, 64)
 				if err != nil {
 					row--
 					break
 				}
 
-				item.SetRest(rest)
+				item.SetAmount(amount)
 
 				cell, _ = excelize.CoordinatesToCellName(iCont, row)
 				desc, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
@@ -90,6 +91,7 @@ func (j *JournalMem) LoadFromFile(fileName string) bool {
 				item.SetDescription(desc)
 
 				if item.GetDescription() != "" {
+					fmt.Println(item)
 					j.items[j.GetItemsCount()] = item
 				}
 			}
@@ -103,9 +105,9 @@ func (j *JournalMem) LoadFromFile(fileName string) bool {
 		}
 	}
 	if j.GetItemsCount() > 0 {
-		return true
+		return nil
 	} else {
-		return false
+		return errors.New("no items in file")
 	}
 }
 
@@ -178,7 +180,7 @@ func (j *JournalMem) HasItem(name string, rest float64) (Models.ItemState, *[]in
 	for i, val := range j.items {
 		if strings.ContainsAny(val.GetDescription(), name) {
 			indexes = append(indexes, i)
-			if val.GetRest() == rest {
+			if val.GetAmount() == rest {
 				return Models.IsFound, &indexes
 			}
 		}
@@ -190,7 +192,7 @@ func (j *JournalMem) HasItem(name string, rest float64) (Models.ItemState, *[]in
 	} else {
 		b := 0.0
 		for i := range indexes {
-			b += j.GetItem(i).GetRest()
+			b += j.GetItem(i).GetAmount()
 		}
 		if b == rest {
 			return Models.IsCollect, &indexes

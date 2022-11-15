@@ -1,6 +1,8 @@
 package balance
 
 import (
+	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -14,9 +16,9 @@ type BalanceMem struct {
 
 type Journal interface {
 	GetItemsCount() int
-	LoadFromFile(fileName string) bool
+	LoadFromFile(fileName string) error
 	findField(field string, row int, f *excelize.File) int
-	findRow(field string, f *excelize.File) int
+	findRow(f *excelize.File) int
 
 	Save(fileName string) error
 	makeHeader(sheet string, f *excelize.File)
@@ -50,7 +52,7 @@ func (b *BalanceMem) findField(field string, row int, f *excelize.File) int {
 	return -1
 }
 
-func (b *BalanceMem) findRow(field string, f *excelize.File) int {
+func (b *BalanceMem) findRow(f *excelize.File) int {
 	i := 1
 	value := ""
 	for i < tryCnt {
@@ -126,172 +128,97 @@ func (b *BalanceMem) saveData(sheet string, f *excelize.File) {
 	//sheet.Cells[row, Helper.A_FIELD].NumberFormat = "@";
 	//sheet.Columns[Helper.A_FIELD + ":" + Helper.H_FIELD].AutoFit();
 }
-func (b *BalanceMem) LoadFromFile(fileName string) bool {
-	//	xlsx, err := excelize.OpenFile(fileName)
-	//	if err != nil {
-	//		fmt.Println(err)
-	//		return false
-	//	}
-	//	row := j.findRow(fldContent, xlsx)
-	//	if row == -1 {
-	//		return false
-	//	}
-	//	iCont := j.findField(fldContent, row, xlsx)
-	//	if iCont == -1 {
-	//		return false
-	//	}
-	//	iDoc := j.findField(fldDoc, row, xlsx)
-	//	if iDoc == -1 {
-	//		return false
-	//	}
-	//	iAmount := j.findField(fldAmount, row, xlsx)
-	//	if iAmount == -1 {
-	//		return false
-	//	}
-	//	i := 0
-	//	for i < tryCnt {
-	//		row++
-	//
-	//		cell, _ := excelize.CoordinatesToCellName(iDoc, row)
-	//		doc, _ := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
-	//		if doc != "" {
-	//			i = 0
-	//			for {
-	//				row++
-	//
-	//				item := NewItem()
-	//				item.SetDocument(doc)
-	//
-	//				cell, _ := excelize.CoordinatesToCellName(iAmount, row)
-	//				restStr, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
-	//				if err != nil {
-	//					row--
-	//					break
-	//				}
-	//				rest, err := strconv.ParseFloat(restStr, 64)
-	//				if err != nil {
-	//					row--
-	//					break
-	//				}
-	//
-	//				item.SetRest(rest)
-	//
-	//				cell, _ = excelize.CoordinatesToCellName(iCont, row)
-	//				desc, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
-	//				if err != nil {
-	//					row--
-	//					break
-	//				}
-	//				item.SetDescription(desc)
-	//
-	//				if item.GetDescription() != "" {
-	//					j.items[j.GetItemsCount()] = item
-	//				}
-	//			}
-	//		} else {
-	//			cell, _ := excelize.CoordinatesToCellName(iCont, row)
-	//			content, _ := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
-	//			if content == "" {
-	//				i++
-	//				continue
-	//			}
-	//		}
-	//	}
-	//	if j.GetItemsCount() > 0 {
-	//		return true
-	//	} else {
-	//		return false
-	//	}
-	return true
+func (b *BalanceMem) LoadFromFile(fileName string) error {
+	xlsx, err := excelize.OpenFile(fileName)
+	if err != nil {
+		fmt.Println(err)
+		return errors.New("file is corrupted")
+	}
+
+	row := b.findRow(xlsx)
+	if row == -1 {
+		return errors.New("file read error")
+	}
+	iBill := b.findField(fldBill, row, xlsx)
+	if iBill == -1 {
+		return errors.New("file read error")
+	}
+	iName := b.findField(fldName, row, xlsx)
+	if iName == -1 {
+		return errors.New("file read error")
+	}
+	iDesc := b.findField(fldDesc, row, xlsx)
+	if iDesc == -1 {
+		return errors.New("file read error")
+	}
+	iCount := b.findField(fldCount+" "+fldPerEnd, row, xlsx)
+	if iCount == -1 {
+		return errors.New("file read error")
+	}
+	iRest := b.findField(fldRest+" "+fldPerEnd, row, xlsx)
+	if iRest == -1 {
+		return errors.New("file read error")
+	}
+	i := 0
+	for i < tryCnt {
+		row++
+		cell, _ := excelize.CoordinatesToCellName(iBill, row)
+		bill, _ := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
+		if bill == "" {
+			i++
+		} else {
+			item := NewItem()
+			item.SetBill(bill)
+
+			cell, _ = excelize.CoordinatesToCellName(iDesc, row)
+			desc, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
+			if err != nil {
+				i++
+				continue
+			}
+			item.SetDescription(desc)
+
+			cell, _ = excelize.CoordinatesToCellName(iName, row)
+			name, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
+			if err != nil {
+				i++
+				continue
+			}
+			item.SetName(name)
+
+			cell, _ = excelize.CoordinatesToCellName(iCount, row)
+			countStr, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
+			if err != nil {
+				i++
+				continue
+			}
+			count, err := strconv.ParseInt(countStr, 10, 64)
+			if err != nil {
+				i++
+				continue
+			}
+			item.SetCount(count)
+
+			cell, _ = excelize.CoordinatesToCellName(iRest, row)
+			restStr, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
+			if err != nil {
+				i++
+				continue
+			}
+			rest, err := strconv.ParseFloat(restStr, 64)
+			if err != nil {
+				i++
+				continue
+			}
+			item.SetRest(rest)
+			fmt.Println(item)
+			b.items[b.GetItemsCount()] = item
+			i = 1
+		}
+	}
+	if b.GetItemsCount() > 0 {
+		return nil
+	} else {
+		return errors.New("no items in file")
+	}
 }
-
-/*   private bool LoadFromXLS()
-{
-    try
-    {
-        Excel.Worksheet objWorksheet;
-        objWorksheet = GetActiveSheet(application, fileName);
-
-        int row = FindRow(objWorksheet);
-        if (row == -1)
-            return false;
-        int iBill = FindField(Helper.BILL, row, objWorksheet);
-        if (iBill == -1)
-            return false;
-        int iName = FindField(Helper.NAME, row, objWorksheet);
-        if (iName == -1)
-            return false;
-        int iCount = FindField(Helper.COUNT + " " + Helper.PER_END, row, objWorksheet);
-        if (iCount == -1)
-            return false;
-        int iDesc = FindField(Helper.DESC, row, objWorksheet);
-        if (iDesc == -1)
-            return false;
-        int iRest = FindField(Helper.REST + " " + Helper.PER_END, row, objWorksheet);
-        if (iRest == -1)
-            return false;
-
-        int i = 0;
-
-        while (i < Helper.TRY_COUNT)
-        {
-            row++;
-            BalanceItem BI = new BalanceItem
-            {
-                Bill = objWorksheet.Cells[row, iBill].Text.ToString()
-            };
-            if (BI.Bill.Equals(""))
-            {
-                i++;
-            }
-            else
-            {
-                BI.Description = objWorksheet.Cells[row, iDesc].Text.ToString();
-                if (BI.Description.Equals(""))
-                {
-                    i++;
-                    continue;
-                }
-                BI.Name = objWorksheet.Cells[row, iName].Text.ToString();
-                if (BI.Name.Equals(""))
-                {
-                    i++;
-                    continue;
-                }
-                try
-                {
-                    BI.Count = int.Parse(objWorksheet.Cells[row, iCount].Text.ToString());
-                }
-                catch (FormatException)
-                {
-                    i++;
-                    continue;
-                }
-                try
-                {
-                    BI.Rest = double.Parse(objWorksheet.Cells[row, iRest].Text.ToString());
-                }
-                catch (FormatException)
-                {
-                    i++;
-                    continue;
-                }
-                items.Add(BI);
-                i = 1;
-            }
-        }
-        if (items.Count > 0)
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-    finally
-    {
-        application.Workbooks.Close();
-    }
-}
-*/

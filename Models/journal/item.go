@@ -1,14 +1,14 @@
 package journal
 
 type ItemMem struct {
-	rest        float64
+	amount      float64
 	description string
 	document    string
 }
 
 type Item interface {
-	GetRest() float64
-	SetRest(val float64)
+	GetAmount() float64
+	SetAmount(val float64)
 	GetDescription() string
 	SetDescription(val string)
 	GetDocument() string
@@ -20,15 +20,15 @@ func NewItem() *ItemMem {
 	return &ItemMem{}
 }
 
-func (i *ItemMem) GetRest() float64 {
-	return i.rest
+func (i *ItemMem) GetAmount() float64 {
+	return i.amount
 }
 
-func (i *ItemMem) SetRest(val float64) {
+func (i *ItemMem) SetAmount(val float64) {
 	if val >= 0 {
-		i.rest = val
+		i.amount = val
 	} else {
-		i.rest = 0
+		i.amount = 0
 	}
 }
 

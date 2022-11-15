@@ -4,34 +4,35 @@ import (
 	"BM/Models"
 	"BM/Models/balance"
 	"BM/Models/journal"
+	"fmt"
 )
 
 func StartProcess(src Models.Sources) {
 
 	jr := journal.NewJournal()
-	jr.LoadFromFile(src.Journal)
+	err := jr.LoadFromFile(src.Journal)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	bl := balance.NewBalance()
-	bl.LoadFromFile(src.Balance)
+	err = bl.LoadFromFile(src.Balance)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
-	//xlsx, err := excelize.OpenFile(src.journal)
-	//if err != nil {
-	//	fmt.Println(err)
-	//	return
-	//}
-	//
-	//sheetMap := xlsx.GetSheetMap()
-	//for _, sheetName := range sheetMap {
-	//	// Get value from cell by given worksheet name and axis.
-	//	cell := xlsx.GetCellValue(sheetName, "A5")
-	//	fmt.Println(cell)
-	//	// Get all the rows in the Sheet1.
-	//	rows := xlsx.GetRows(sheetName)
-	//	for _, row := range rows {
-	//		for _, colCell := range row {
-	//			fmt.Print(colCell, "\t")
-	//		}
-	//		fmt.Println()
-	//	}
-	//}
+	if src.Card == "" {
+		fmt.Println("Process old method")
+
+	} else {
+		fmt.Println("Process new method")
+		//cr := card.NewCard()
+		//err = cr.LoadFromFile(src.Card)
+		//if err != nil {
+		//	fmt.Println(err)
+		//	return
+		//}
+	}
 }

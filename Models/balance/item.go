@@ -8,7 +8,7 @@ type ItemMem struct {
 	document    string
 	name        string
 	bill        string
-	count       int
+	count       int64
 	comment     string
 	state       Models.ItemState
 }
@@ -18,19 +18,23 @@ type Item interface {
 	SetRest(val float64)
 	GetDescription() string
 	SetDescription(val string)
-	GetDocument() string
-	SetDocument(val string)
+	//GetDocument() string
+	//SetDocument(val string)
 	GetName() string
 	SetName(val string)
 	GetBill() string
 	SetBill(val string)
-	GetComment() string
-	SetComment(val string)
-	GetCount() int
-	SetCount(val int)
-	GetState() Models.ItemState
-	SetState(val Models.ItemState)
+	//GetComment() string
+	//SetComment(val string)
+	GetCount() int64
+	SetCount(val int64)
+	//GetState() Models.ItemState
+	//SetState(val Models.ItemState)
 	Equal(val *ItemMem) bool
+}
+
+func NewItem() *ItemMem {
+	return &ItemMem{}
 }
 
 func (i *ItemMem) Equal(val *ItemMem) bool {
@@ -68,4 +72,52 @@ func (i *ItemMem) statusToColor() string {
 	default:
 		return "#FFFF00"
 	}
+}
+
+func (i *ItemMem) GetDescription() string {
+	return i.description
+}
+
+func (i *ItemMem) SetDescription(val string) {
+	i.description = val
+}
+
+func (i *ItemMem) GetName() string {
+	return i.name
+}
+
+func (i *ItemMem) SetName(val string) {
+	i.name = val
+}
+
+func (i *ItemMem) GetCount() int64 {
+	return i.count
+}
+
+func (i *ItemMem) SetCount(val int64) {
+	if val >= 0 {
+		i.count = val
+	} else {
+		i.count = 0
+	}
+}
+
+func (i *ItemMem) GetRest() float64 {
+	return i.rest
+}
+
+func (i *ItemMem) SetRest(val float64) {
+	if val >= 0 {
+		i.rest = val
+	} else {
+		i.rest = 0
+	}
+}
+
+func (i *ItemMem) GetBill() string {
+	return i.bill
+}
+
+func (i *ItemMem) SetBill(val string) {
+	i.bill = val
 }
