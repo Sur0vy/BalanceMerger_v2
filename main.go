@@ -37,8 +37,10 @@ func initGUI(w fyne.Window) {
 	btnJournal := widget.NewButton("", func() {
 		dlgJournal := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				src.journal = r.URI().Path()
-				entJournal.SetText(src.journal)
+				if r != nil {
+					src.journal = r.URI().Path()
+					entJournal.SetText(src.journal)
+				}
 			}, w)
 		dlgJournal.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx", ".csv"}))
@@ -52,8 +54,10 @@ func initGUI(w fyne.Window) {
 	btnBalance := widget.NewButton("", func() {
 		dlgBalance := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				src.balance = r.URI().Path()
-				entBalance.SetText(src.balance)
+				if r != nil {
+					src.balance = r.URI().Path()
+					entBalance.SetText(src.balance)
+				}
 			}, w)
 		dlgBalance.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
@@ -67,8 +71,10 @@ func initGUI(w fyne.Window) {
 	btnCard := widget.NewButton("", func() {
 		dlgCard := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
-				src.card = r.URI().Path()
-				entCard.SetText(src.card)
+				if r != nil {
+					src.card = r.URI().Path()
+					entCard.SetText(src.card)
+				}
 			}, w)
 		dlgCard.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
