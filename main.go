@@ -1,6 +1,7 @@
 package main
 
 import (
+	"BM/Models"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -10,7 +11,7 @@ import (
 	"fyne.io/fyne/v2/widget"
 )
 
-var src Sources
+var src Models.Sources
 
 func main() {
 	run()
