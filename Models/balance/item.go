@@ -18,18 +18,18 @@ type Item interface {
 	SetRest(val float64)
 	GetDescription() string
 	SetDescription(val string)
-	//GetDocument() string
-	//SetDocument(val string)
+	GetDocument() string
+	SetDocument(val string)
 	GetName() string
 	SetName(val string)
 	GetBill() string
 	SetBill(val string)
-	//GetComment() string
-	//SetComment(val string)
+	GetComment() string
+	SetComment(val string)
 	GetCount() int64
 	SetCount(val int64)
-	//GetState() Models.ItemState
-	//SetState(val Models.ItemState)
+	GetState() Models.ItemState
+	SetState(val Models.ItemState)
 	Equal(val *ItemMem) bool
 }
 
@@ -120,4 +120,28 @@ func (i *ItemMem) GetBill() string {
 
 func (i *ItemMem) SetBill(val string) {
 	i.bill = val
+}
+
+func (i *ItemMem) GetState() Models.ItemState {
+	return i.state
+}
+
+func (i *ItemMem) SetState(val Models.ItemState) {
+	i.state = val
+}
+
+func (i *ItemMem) GetDocument() string {
+	return i.document
+}
+
+func (i *ItemMem) SetDocument(val string) {
+	i.document = val
+}
+
+func (i *ItemMem) GetComment() string {
+	return i.comment
+}
+
+func (i *ItemMem) SetComment(val string) {
+	i.comment = val
 }

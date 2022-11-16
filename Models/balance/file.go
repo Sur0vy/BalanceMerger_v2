@@ -14,11 +14,12 @@ type BalanceMem struct {
 	items    map[int]*ItemMem
 }
 
-type Journal interface {
+type Balance interface {
 	GetItemsCount() int
 	LoadFromFile(fileName string) error
 	findField(field string, row int, f *excelize.File) int
 	findRow(f *excelize.File) int
+	GetItem(idx int) *ItemMem
 
 	Save(fileName string) error
 	makeHeader(sheet string, f *excelize.File)
@@ -120,14 +121,8 @@ func (b *BalanceMem) saveData(sheet string, f *excelize.File) {
 		f.SetCellStyle(sheet, "G"+strconv.Itoa(row), "G"+strconv.Itoa(row), style)
 		f.SetCellValue(sheet, "H"+strconv.Itoa(row), val.comment)
 	}
-	//f.SetColWidth()
-	//style2, _ := f.NewStyle(&excelize.Style{
-	//	Fill: excelize.Fill{Type: "pattern", Color: []string{val.statusToColor()}, Pattern: 1},
-	//})
-	//f.SetCellStyle(sheet, "G"+strconv.Itoa(row), "G"+strconv.Itoa(row), style)
-	//sheet.Cells[row, Helper.A_FIELD].NumberFormat = "@";
-	//sheet.Columns[Helper.A_FIELD + ":" + Helper.H_FIELD].AutoFit();
 }
+
 func (b *BalanceMem) LoadFromFile(fileName string) error {
 	xlsx, err := excelize.OpenFile(fileName)
 	if err != nil {
@@ -220,5 +215,14 @@ func (b *BalanceMem) LoadFromFile(fileName string) error {
 		return nil
 	} else {
 		return errors.New("no items in file")
+	}
+}
+
+func (b *BalanceMem) GetItem(idx int) *ItemMem {
+	item, ok := b.items[idx]
+	if ok {
+		return item
+	} else {
+		return nil
 	}
 }

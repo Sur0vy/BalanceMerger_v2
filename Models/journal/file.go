@@ -175,29 +175,31 @@ func (j *JournalMem) GetItem(idx int) *ItemMem {
 	}
 }
 
-func (j *JournalMem) HasItem(name string, rest float64) (Models.ItemState, *[]int) {
+func (j *JournalMem) HasItem(name string, rest float64) (Models.ItemState, []int) {
 	indexes := []int{}
 	for i, val := range j.items {
-		if strings.ContainsAny(val.GetDescription(), name) {
-			indexes = append(indexes, i)
+		if strings.Contains(val.GetDescription(), name) {
 			if val.GetAmount() == rest {
-				return Models.IsFound, &indexes
+				indexes = nil
+				indexes = append(indexes, i)
+				return Models.IsFound, indexes
 			}
+			indexes = append(indexes, i)
 		}
 	}
 	if len(indexes) == 0 {
-		return Models.IsMissing, &indexes
+		return Models.IsMissing, indexes
 	} else if len(indexes) == 1 {
-		return Models.IsDifBalance, &indexes
+		return Models.IsDifBalance, indexes
 	} else {
 		b := 0.0
-		for i := range indexes {
+		for _, i := range indexes {
 			b += j.GetItem(i).GetAmount()
 		}
 		if b == rest {
-			return Models.IsCollect, &indexes
+			return Models.IsCollect, indexes
 		} else {
-			return Models.IsCollectMissing, &indexes
+			return Models.IsCollectMissing, indexes
 		}
 	}
 }
