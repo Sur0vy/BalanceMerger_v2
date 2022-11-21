@@ -91,7 +91,6 @@ func (j *JournalMem) LoadFromFile(fileName string) error {
 				item.SetDescription(desc)
 
 				if item.GetDescription() != "" {
-					fmt.Println(item)
 					j.items[j.GetItemsCount()] = item
 				}
 			}

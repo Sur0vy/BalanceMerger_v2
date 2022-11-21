@@ -8,8 +8,9 @@ type ItemMem struct {
 	document    string
 	name        string
 	bill        string
-	count       int64
+	count       int
 	comment     string
+	spent       int
 	state       Models.ItemState
 }
 
@@ -26,8 +27,10 @@ type Item interface {
 	SetBill(val string)
 	GetComment() string
 	SetComment(val string)
-	GetCount() int64
-	SetCount(val int64)
+	GetCount() int
+	SetCount(val int)
+	GetSpent() int
+	SetSpent(val int)
 	GetState() Models.ItemState
 	SetState(val Models.ItemState)
 	Equal(val *ItemMem) bool
@@ -90,11 +93,11 @@ func (i *ItemMem) SetName(val string) {
 	i.name = val
 }
 
-func (i *ItemMem) GetCount() int64 {
+func (i *ItemMem) GetCount() int {
 	return i.count
 }
 
-func (i *ItemMem) SetCount(val int64) {
+func (i *ItemMem) SetCount(val int) {
 	if val >= 0 {
 		i.count = val
 	} else {
@@ -111,6 +114,18 @@ func (i *ItemMem) SetRest(val float64) {
 		i.rest = val
 	} else {
 		i.rest = 0
+	}
+}
+
+func (i *ItemMem) GetSpent() int {
+	return i.spent
+}
+
+func (i *ItemMem) SetSpent(val int) {
+	if val >= 0 {
+		i.spent = val
+	} else {
+		i.spent = 0
 	}
 }
 

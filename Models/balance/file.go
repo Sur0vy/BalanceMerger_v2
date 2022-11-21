@@ -78,13 +78,19 @@ func (b *BalanceMem) makeHeader(sheet string, f *excelize.File) {
 	f.SetCellValue(sheet, "B1", fldName)
 	f.SetCellValue(sheet, "C1", fldRest+fldPerEnd)
 	f.SetCellValue(sheet, "D1", fldCount+fldPerEnd)
-	f.SetCellValue(sheet, "E1", fldDesc)
-	f.SetCellValue(sheet, "F1", "Документ")
-	f.SetCellValue(sheet, "G1", "Статус")
-	f.SetCellValue(sheet, "H1", "Примечание")
+	f.SetCellValue(sheet, "E1", "Списание")
+	f.SetCellValue(sheet, "F1", "Остаток после списания")
+	f.SetCellValue(sheet, "G1", fldDesc)
+	f.SetCellValue(sheet, "H1", "Документ")
+	f.SetCellValue(sheet, "I1", "Статус")
+	f.SetCellValue(sheet, "J1", "Примечание")
 
 	style, _ := f.NewStyle(`{"alignment":{"horizontal":"center"},"font":{"bold":true}}`)
 	f.SetRowStyle(sheet, 1, 1, style)
+	f.SetColWidth(sheet, "A", "J", 16)
+	f.SetColWidth(sheet, "C", "D", 32)
+	f.SetColWidth(sheet, "G", "H", 60)
+
 }
 
 func (b *BalanceMem) Save(fileName string) error {
@@ -102,24 +108,29 @@ func (b *BalanceMem) Save(fileName string) error {
 func (b *BalanceMem) saveData(sheet string, f *excelize.File) {
 	skipCnt := 0
 	row := 0
-	for i, val := range b.items {
+	i := 1
+	for _, val := range b.items {
+		i++
 		if val.rest == 0 && val.count == 0 {
 			skipCnt++
 			continue
 		}
-		row = i + 2 - skipCnt
+		row = i - skipCnt
 		f.SetCellValue(sheet, "A"+strconv.Itoa(row), val.bill)
 		f.SetCellValue(sheet, "B"+strconv.Itoa(row), val.name)
 		f.SetCellValue(sheet, "C"+strconv.Itoa(row), val.rest)
 		f.SetCellValue(sheet, "D"+strconv.Itoa(row), val.count)
-		f.SetCellValue(sheet, "E"+strconv.Itoa(row), val.description)
-		f.SetCellValue(sheet, "F"+strconv.Itoa(row), val.document)
-		f.SetCellValue(sheet, "G"+strconv.Itoa(row), val.statusToStr())
+		f.SetCellValue(sheet, "E"+strconv.Itoa(row), val.spent)
+		formula := "=D" + strconv.Itoa(row) + "-E" + strconv.Itoa(row)
+		f.SetCellFormula(sheet, "F"+strconv.Itoa(row), formula)
+		f.SetCellValue(sheet, "G"+strconv.Itoa(row), val.description)
+		f.SetCellValue(sheet, "H"+strconv.Itoa(row), val.document)
+		f.SetCellValue(sheet, "I"+strconv.Itoa(row), val.statusToStr())
 		style, _ := f.NewStyle(&excelize.Style{
 			Fill: excelize.Fill{Type: "pattern", Color: []string{val.statusToColor()}, Pattern: 1},
 		})
-		f.SetCellStyle(sheet, "G"+strconv.Itoa(row), "G"+strconv.Itoa(row), style)
-		f.SetCellValue(sheet, "H"+strconv.Itoa(row), val.comment)
+		f.SetCellStyle(sheet, "I"+strconv.Itoa(row), "I"+strconv.Itoa(row), style)
+		f.SetCellValue(sheet, "J"+strconv.Itoa(row), val.comment)
 	}
 }
 
@@ -146,11 +157,11 @@ func (b *BalanceMem) LoadFromFile(fileName string) error {
 	if iDesc == -1 {
 		return errors.New("file read error")
 	}
-	iCount := b.findField(fldCount+" "+fldPerEnd, row, xlsx)
+	iCount := b.findField(fldCount+fldPerEnd, row, xlsx)
 	if iCount == -1 {
 		return errors.New("file read error")
 	}
-	iRest := b.findField(fldRest+" "+fldPerEnd, row, xlsx)
+	iRest := b.findField(fldRest+fldPerEnd, row, xlsx)
 	if iRest == -1 {
 		return errors.New("file read error")
 	}
@@ -192,7 +203,7 @@ func (b *BalanceMem) LoadFromFile(fileName string) error {
 				i++
 				continue
 			}
-			item.SetCount(count)
+			item.SetCount(int(count))
 
 			cell, _ = excelize.CoordinatesToCellName(iRest, row)
 			restStr, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
@@ -206,7 +217,6 @@ func (b *BalanceMem) LoadFromFile(fileName string) error {
 				continue
 			}
 			item.SetRest(rest)
-			fmt.Println(item)
 			b.items[b.GetItemsCount()] = item
 			i = 1
 		}

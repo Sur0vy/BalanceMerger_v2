@@ -3,25 +3,28 @@ package main
 import (
 	"BM/Models"
 	"BM/Models/balance"
+	"BM/Models/card"
 	"BM/Models/journal"
 	"fmt"
 	"strconv"
 )
 
-func StartProcess(src Models.Sources) {
+var output *balance.BalanceMem
+
+func StartProcess(src Models.Sources) bool {
 
 	jr := journal.NewJournal()
 	err := jr.LoadFromFile(src.Journal)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 
 	bl := balance.NewBalance()
 	err = bl.LoadFromFile(src.Balance)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return false
 	}
 
 	if src.Card == "" {
@@ -29,23 +32,33 @@ func StartProcess(src Models.Sources) {
 		err := mergeV1(bl, jr)
 		if err != nil {
 			fmt.Println(err)
-		} else {
-			//bl.Save(src.Balance + "111")
-			bl.Save("/Users/Sur0vy/out.xlsx")
+			return false
 		}
 	} else {
 		fmt.Println("Process new method")
-		//cr := card.NewCard()
-		//err = cr.LoadFromFile(src.Card)
-		//if err != nil {
-		//	fmt.Println(err)
-		//	return
-		//}
-		err := mergeV2()
+		cr := card.NewCard()
+		err = cr.LoadFromFile(src.Card)
 		if err != nil {
 			fmt.Println(err)
+			return false
+		}
+		err := mergeV1(bl, jr)
+		if err != nil {
+			fmt.Println(err)
+			return false
+		}
+		err = mergeV2(bl, cr)
+		if err != nil {
+			fmt.Println(err)
+			return false
 		}
 	}
+	output = bl
+	return true
+}
+
+func SaveMergedFile(fileName string) {
+	output.Save(fileName)
 }
 
 func mergeV1(bl *balance.BalanceMem, jr *journal.JournalMem) error {
@@ -92,6 +105,21 @@ func mergeV1(bl *balance.BalanceMem, jr *journal.JournalMem) error {
 	return nil
 }
 
-func mergeV2() error {
+func mergeV2(bl *balance.BalanceMem, crd *card.CardMem) error {
+	for i := 0; i <= bl.GetItemsCount()-1; i++ {
+		bi := bl.GetItem(i)
+		idx := crd.HasItemOut(bi.GetDocument(), bi.GetDescription())
+		if idx == -1 {
+			continue
+		}
+		ci := crd.GetItemOut(idx)
+		if ci.GetOut() <= bi.GetCount() {
+			bi.SetSpent(ci.GetOut())
+			ci.SetOut(0)
+		} else {
+			bi.SetSpent(bi.GetCount())
+			ci.SetOut(ci.GetOut() - bi.GetCount())
+		}
+	}
 	return nil
 }
