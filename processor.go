@@ -6,6 +6,7 @@ import (
 	"BM/Models/card"
 	"BM/Models/journal"
 	"fmt"
+	"path/filepath"
 	"strconv"
 )
 
@@ -127,10 +128,13 @@ func StartProcess(src Models.Sources, c chan response) {
 }
 
 func SaveMergedFile(fileName string) {
+	if filepath.Ext(fileName) == "" {
+		fileName += fileName + ".xlsx"
+	}
 	if output.Save(fileName) != nil {
 		lbMessage.SetText("Ошибка при сохранении результатов обработки!")
 	} else {
-		lbMessage.SetText("Результаты обработки успешно сохранены!")
+		lbMessage.SetText(fmt.Sprintf("Результаты обработки успешно сохранены в файл \"%s\"!", fileName))
 	}
 }
 
