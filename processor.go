@@ -9,30 +9,68 @@ import (
 	"strconv"
 )
 
+type ResponseStep int
+
+const (
+	RiJournal ResponseStep = iota
+	RiBalance
+	RiCard
+	RiProcess
+)
+
+type response struct {
+	Status   bool
+	Step     ResponseStep
+	Progress float64
+}
+
 var output *balance.BalanceMem
 
-func StartProcess(src Models.Sources) bool {
+func StartProcess(src Models.Sources, c chan response) {
 
 	jr := journal.NewJournal()
 	err := jr.LoadFromFile(src.Journal)
 	if err != nil {
 		fmt.Println(err)
-		return false
+		c <- response{
+			Progress: 0,
+			Step:     RiJournal,
+			Status:   false,
+		}
+		return
 	}
-
+	c <- response{
+		Progress: 100,
+		Step:     RiJournal,
+		Status:   true,
+	}
 	bl := balance.NewBalance()
 	err = bl.LoadFromFile(src.Balance)
 	if err != nil {
 		fmt.Println(err)
-		return false
+		c <- response{
+			Progress: 0,
+			Step:     RiBalance,
+			Status:   false,
+		}
+		return
 	}
-
+	c <- response{
+		Progress: 100,
+		Step:     RiBalance,
+		Status:   true,
+	}
 	if src.Card == "" {
 		fmt.Println("Process old method")
 		err := mergeV1(bl, jr)
 		if err != nil {
 			fmt.Println(err)
-			return false
+			c <- response{
+				Progress: 0,
+				Step:     RiProcess,
+				Status:   false,
+			}
+			return
 		}
 	} else {
 		fmt.Println("Process new method")
@@ -40,25 +78,60 @@ func StartProcess(src Models.Sources) bool {
 		err = cr.LoadFromFile(src.Card)
 		if err != nil {
 			fmt.Println(err)
-			return false
+			c <- response{
+				Progress: 0,
+				Step:     RiCard,
+				Status:   false,
+			}
+			return
+		}
+		c <- response{
+			Progress: 100,
+			Step:     RiCard,
+			Status:   true,
 		}
 		err := mergeV1(bl, jr)
 		if err != nil {
 			fmt.Println(err)
-			return false
+			c <- response{
+				Progress: 0,
+				Step:     RiProcess,
+				Status:   false,
+			}
+			return
 		}
+		c <- response{
+			Progress: 10,
+			Step:     RiProcess,
+			Status:   true,
+		}
+		//todo start in gorutine
 		err = mergeV2(bl, cr)
 		if err != nil {
 			fmt.Println(err)
-			return false
+			c <- response{
+				Progress: 0,
+				Step:     RiProcess,
+				Status:   false,
+			}
+			return
 		}
+		//end todo
 	}
 	output = bl
-	return true
+	c <- response{
+		Progress: 100,
+		Step:     RiProcess,
+		Status:   true,
+	}
 }
 
 func SaveMergedFile(fileName string) {
-	output.Save(fileName)
+	if output.Save(fileName) != nil {
+		lbMessage.SetText("Ошибка при сохранении результатов обработки!")
+	} else {
+		lbMessage.SetText("Результаты обработки успешно сохранены!")
+	}
 }
 
 func mergeV1(bl *balance.BalanceMem, jr *journal.JournalMem) error {

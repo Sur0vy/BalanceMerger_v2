@@ -313,7 +313,7 @@ func (c *CardMem) HasItemOut(doc string, position string) int {
 			}
 			if strings.Contains(docS, docD) {
 				find := strings.ReplaceAll(strings.ToLower(position), " ", "")
-				fmt.Println(find + "\t" + val.position)
+				//fmt.Println(find + "\t" + val.position)
 				if strings.Contains(find, val.position) {
 					return i
 				}

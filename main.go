@@ -9,11 +9,72 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"time"
 )
 
 var src Models.Sources
 var ap fyne.App
 var mainWindow fyne.Window
+
+var pbJournal = widget.ProgressBar{
+	Min: 0,
+	Max: 100,
+}
+var pbBalance = widget.ProgressBar{
+	Min: 0,
+	Max: 100,
+}
+var pbCard = widget.ProgressBar{
+	Min: 0,
+	Max: 100,
+}
+var pbProcess = widget.ProgressBar{
+	Min: 0,
+	Max: 100,
+}
+
+var lbMessage = widget.Label{
+	Alignment: fyne.TextAlignCenter,
+	Wrapping:  fyne.TextWrapWord,
+}
+
+var cbAutoSave = widget.Check{
+	Text: "Автосохранение",
+}
+
+//buttonTitle := "Disable"
+//button := widget.NewButton(buttonTitle, nil)
+//changeButton := func() {
+//	// here could be your logic
+//	// how to disable/enable button
+//	if button.Text == "Disable" {
+//		buttonTitle = "Enable"
+//		//button.Disable()
+//	}
+//	button.SetText(buttonTitle)
+//	button.Refresh()
+//}
+//button.OnTapped = changeButton
+
+var btnSave = widget.Button{
+	Text:          "Сохранить...",
+	Icon:          theme.DocumentSaveIcon(),
+	Importance:    0,
+	Alignment:     0,
+	IconPlacement: 0,
+}
+
+var onSaveTapped = func() {
+	dlgSave := dialog.NewFileSave(func(r fyne.URIWriteCloser, _ error) {
+		if r != nil {
+			SaveMergedFile(r.URI().Path())
+			btnSave.Disable()
+		}
+	}, mainWindow)
+	dlgSave.SetFilter(storage.NewExtensionFileFilter([]string{".xlsx"}))
+	dlgSave.SetFileName(src.GetOutFileName(true))
+	dlgSave.Show()
+}
 
 func main() {
 	run()
@@ -27,18 +88,66 @@ func run() {
 }
 
 func processDocuments() {
-	//todo: проверить существование файлов
-	if StartProcess(src) {
-		dlgSave := dialog.NewFileSave(func(r fyne.URIWriteCloser, _ error) {
-			if r != nil {
-				SaveMergedFile(r.URI().Path())
+	pbProcess.SetValue(0)
+	pbCard.SetValue(0)
+	pbBalance.SetValue(0)
+	pbJournal.SetValue(0)
+
+	ans := make(chan response)
+	go StartProcess(src, ans)
+	processDone := false
+
+	for {
+		if processDone {
+			break
+		}
+		time.Sleep(10 * time.Microsecond)
+		val, ok := <-ans
+		if ok == false {
+			lbMessage.SetText("Непредвиденная ошибка обработки!")
+			break // exit break loop
+		} else {
+			switch val.Step {
+			case RiJournal:
+				pbJournal.SetValue(val.Progress)
+			case RiBalance:
+				pbBalance.SetValue(val.Progress)
+			case RiCard:
+				pbCard.SetValue(val.Progress)
+			default:
+				pbProcess.SetValue(val.Progress)
+				if val.Progress == 100 {
+					processDone = true
+					break
+				}
 			}
-		}, mainWindow)
-		dlgSave.SetFilter(
-			storage.NewExtensionFileFilter([]string{".xlsx"}))
-		//todo: привести имя в божеский вид
-		dlgSave.SetFileName(src.Balance + "_merged")
-		dlgSave.Show()
+			if val.Status == false {
+				switch val.Step {
+				case RiJournal:
+					lbMessage.SetText("Ошибка при открытии файла журнала, возможно файл поврежден " +
+						"или данные в некорректном формате.")
+				case RiBalance:
+					lbMessage.SetText("Ошибка при открытии файла баланса, возможно файл поврежден " +
+						"или данные в некорректном формате.")
+				case RiCard:
+					lbMessage.SetText("Ошибка при открытии файла карточки счета, возможно файл поврежден " +
+						"или данные в некорректном формате.")
+				default:
+					lbMessage.SetText("Ошибка при обработке данных.")
+				}
+				break
+			}
+		}
+	}
+	close(ans)
+
+	if processDone {
+		lbMessage.SetText("Обработка данных выполнена успешно!")
+		if cbAutoSave.Checked {
+			SaveMergedFile(src.GetOutFileName(false))
+		} else {
+			btnSave.Enable()
+		}
 	}
 }
 
@@ -47,7 +156,10 @@ func initGUI(w fyne.Window) {
 
 	//журнал
 	lblJournal := widget.Label{Text: "Журнал:"}
-	entJournal := widget.Entry{PlaceHolder: "Файл журнала (*.xlsx)"}
+	entJournal := widget.Entry{
+		PlaceHolder: "Файл журнала (*.xlsx)",
+		Wrapping:    fyne.TextTruncate,
+	}
 	btnJournal := widget.NewButton("", func() {
 		dlgJournal := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
@@ -64,7 +176,10 @@ func initGUI(w fyne.Window) {
 
 	//баланс
 	lblBalance := widget.Label{Text: "Баланс:"}
-	entBalance := widget.Entry{PlaceHolder: "Файл баланса (*.xlsx)"}
+	entBalance := widget.Entry{
+		PlaceHolder: "Файл баланса (*.xlsx)",
+		Wrapping:    fyne.TextTruncate,
+	}
 	btnBalance := widget.NewButton("", func() {
 		dlgBalance := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
@@ -81,7 +196,10 @@ func initGUI(w fyne.Window) {
 
 	//карточка
 	lblCard := widget.Label{Text: "Карточка счета:"}
-	entCard := widget.Entry{PlaceHolder: "Файл карточки счета (*.xlsx)"}
+	entCard := widget.Entry{
+		PlaceHolder: "Файл карточки счета (*.xlsx)",
+		Wrapping:    fyne.TextTruncate,
+	}
 	btnCard := widget.NewButton("", func() {
 		dlgCard := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
@@ -103,10 +221,6 @@ func initGUI(w fyne.Window) {
 	btnExt.OnTapped = func() {
 		w.Close()
 	}
-	pbJournal := widget.ProgressBar{}
-	pbBalance := widget.ProgressBar{}
-	pbCard := widget.ProgressBar{}
-	pbProcess := widget.ProgressBar{}
 
 	w.SetContent(container.NewBorder(
 		nil,
@@ -115,6 +229,7 @@ func initGUI(w fyne.Window) {
 			nil,
 			nil,
 			container.NewVBox(
+				&btnSave,
 				&btnExt,
 			),
 			container.NewVBox(),
@@ -145,9 +260,8 @@ func initGUI(w fyne.Window) {
 				nil,
 				nil,
 				nil,
-				container.NewVBox(
-					&btnProcess,
-				),
+				&btnProcess,
+				&cbAutoSave,
 			),
 			container.NewBorder(
 				nil,
@@ -164,8 +278,11 @@ func initGUI(w fyne.Window) {
 					&pbBalance,
 					&pbCard,
 					&pbProcess,
+					&lbMessage,
 				),
 			),
 		),
 	))
+	btnSave.OnTapped = onSaveTapped
+	btnSave.Disable()
 }
