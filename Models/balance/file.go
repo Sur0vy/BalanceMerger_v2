@@ -121,7 +121,7 @@ func (b *BalanceMem) saveData(sheet string, f *excelize.File) {
 		f.SetCellValue(sheet, "C"+strconv.Itoa(row), val.rest)
 		f.SetCellValue(sheet, "D"+strconv.Itoa(row), val.count)
 		f.SetCellValue(sheet, "E"+strconv.Itoa(row), val.spent)
-		formula := "=D" + strconv.Itoa(row) + "-E" + strconv.Itoa(row)
+		formula := "D" + strconv.Itoa(row) + "-E" + strconv.Itoa(row)
 		f.SetCellFormula(sheet, "F"+strconv.Itoa(row), formula)
 		f.SetCellValue(sheet, "G"+strconv.Itoa(row), val.description)
 		f.SetCellValue(sheet, "H"+strconv.Itoa(row), val.document)
@@ -132,6 +132,14 @@ func (b *BalanceMem) saveData(sheet string, f *excelize.File) {
 		f.SetCellStyle(sheet, "I"+strconv.Itoa(row), "I"+strconv.Itoa(row), style)
 		f.SetCellValue(sheet, "J"+strconv.Itoa(row), val.comment)
 	}
+	formula := "sum(D2:D" + strconv.Itoa(row) + ")"
+	f.SetCellFormula(sheet, "D"+strconv.Itoa(row+1), formula)
+
+	formula = "sum(E2:E" + strconv.Itoa(row) + ")"
+	f.SetCellFormula(sheet, "E"+strconv.Itoa(row+1), formula)
+
+	formula = "sum(F2:F" + strconv.Itoa(row) + ")"
+	f.SetCellFormula(sheet, "F"+strconv.Itoa(row+1), formula)
 }
 
 func (b *BalanceMem) LoadFromFile(fileName string) error {
