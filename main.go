@@ -65,9 +65,7 @@ var onSaveTapped = func() {
 }
 
 func main() {
-	//src.Card = "/Users/Sur0vy/Карточка счета 10 за 01.01.2020 - 24.08.2022.xlsx"
-	//src.Journal = "/Users/Sur0vy/краснополь списание ЖЛ.xlsx"
-	//src.Balance = "/Users/Sur0vy/краснополь списание.xlsx"
+	//src.Card = "/Users/Ses/Sur0vy/краснополь списание.xlsx"
 	run()
 }
 
