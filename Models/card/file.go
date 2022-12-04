@@ -3,24 +3,33 @@ package card
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/xuri/excelize/v2"
 )
 
+type ItemsArray []*ItemMem
+
+func (a ItemsArray) Len() int           { return len(a) }
+func (a ItemsArray) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ItemsArray) Less(i, j int) bool { return a[i].GetDate().Before(a[j].GetDate()) }
+
 type CardMem struct {
 	fileName string
-	itemsIn  map[int]*ItemMem
-	itemsOut map[int]*ItemMem
+	itemsIn  ItemsArray
+	itemsOut ItemsArray
 }
 
 type Card interface {
 	GetItemsCount() int
-	LoadFromFile(fileName string) error
+	LoadFromFile(fileName string, ch chan int)
 	HasItemOut(doc string, position string) int
 	GetItemIn(idx int) *ItemMem
 	GetItemOut(idx int) *ItemMem
+	GetMissing() ItemsArray
 
 	simplifyDocument(val string) string
 	simplifyPosition(val string) string
@@ -30,44 +39,66 @@ type Card interface {
 }
 
 func NewCard() *CardMem {
-	return &CardMem{
-		fileName: "",
-		itemsIn:  make(map[int]*ItemMem),
-		itemsOut: make(map[int]*ItemMem),
-	}
+	return &CardMem{}
 }
 
-func (c *CardMem) LoadFromFile(fileName string) error {
+func (c *CardMem) LoadFromFile(fileName string, ch chan int) {
 	xlsx, err := excelize.OpenFile(fileName)
 	if err != nil {
 		fmt.Println(err)
-		return errors.New("file is corrupted")
+		ch <- -1
+		return
 	}
 	row := c.findRow(fldDoc, xlsx)
 	if row == -1 {
-		return errors.New("file read error")
+		ch <- -2
+		return
 	}
+
 	iDoc := c.findField(fldDoc, row, xlsx)
 	if iDoc == -1 {
-		return errors.New("file read error")
+		ch <- -2
+		return
 	}
+
+	//get row count
+	var count int
+	step := 100
+	for step > 0 {
+		cell, _ := excelize.CoordinatesToCellName(iDoc, count)
+		doc, _ := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
+		if doc == "" {
+			if count > 0 {
+				count -= step
+				step = step / 2
+				continue
+			}
+		}
+		count += step
+	}
+	coeff := 100.0 / float64(count)
+
 	iDocD := c.findField(fldDocD, row, xlsx)
 	if iDocD == -1 {
-		return errors.New("file read error")
+		ch <- -2
+		return
 	}
 	iDocC := c.findField(fldDocC, row, xlsx)
 	if iDocC == -1 {
-		return errors.New("file read error")
+		ch <- -2
+		return
 	}
 	iCntC := c.findField(fldCntC, row, xlsx)
 	if iCntC == -1 {
-		return errors.New("file read error")
+		ch <- -2
+		return
 	} else {
 		iCntC++
 	}
 	iCntD := c.findField(fldCntD, row, xlsx)
 	if iCntD == -1 {
-		return errors.New("file read error")
+		ch <- -2
+		return
 	} else {
 		iCntD++
 	}
@@ -84,6 +115,12 @@ func (c *CardMem) LoadFromFile(fileName string) error {
 			i = 0
 			item := NewItem()
 			item.SetDocument(c.simplifyDocument(doc))
+			docDate, err := c.getDocumentDate(doc)
+			if err != nil {
+				i++
+				continue
+			}
+			item.SetDate(docDate)
 			cell, _ = excelize.CoordinatesToCellName(iDocD, row)
 			name, err := xlsx.GetCellValue(xlsx.GetSheetName(0), cell)
 
@@ -132,17 +169,20 @@ func (c *CardMem) LoadFromFile(fileName string) error {
 				continue
 			}
 			if in {
-				c.itemsIn[c.GetItemsCount()] = item
+				c.itemsIn = append(c.itemsIn, item)
 			} else {
-				c.itemsOut[c.GetItemsCount()] = item
+				c.itemsOut = append(c.itemsOut, item)
 			}
+			ch <- int(coeff * float64(row))
 		}
 	}
 	if c.GetItemsCount() > 0 {
 		c.fillOutItems()
-		return nil
+		ch <- 100
+		return
 	} else {
-		return errors.New("no items in file")
+		ch <- -3
+		return
 	}
 }
 
@@ -202,37 +242,52 @@ func (c *CardMem) GetItemsCount() int {
 }
 
 func (c *CardMem) fillOutItems() {
-	for i, _ := range c.itemsOut {
+	//отсортируем элементы по дате поступления на склад
+	sort.Sort(c.itemsIn)
+	for i := 0; i < len(c.itemsOut); i++ {
 		out := c.GetItemOut(i)
-		if out.GetNeed() == 0 {
-			continue
-		}
 		for j, _ := range c.itemsIn {
+			if out.GetNeed() == 0 {
+				break
+			}
 			in := c.GetItemIn(j)
 			if in.GetIn() == 0 {
 				continue
 			}
 			if out.position == in.position {
 				if out.GetNeed() <= in.GetIn() {
-					val := out.GetNeed()
-					out.SetIn(out.GetOut() + val)
-					in.SetIn(in.GetIn() - val)
+					out.SetIn(out.GetOut())
+					in.SetIn(in.GetIn() - out.GetOut())
 					out.SetDocument(in.GetDocument())
 					break
 				} else {
-					out.SetIn(out.GetIn() + in.GetIn())
+					item := NewItem()
+					item.SetPosition(out.position)
+					item.SetOut(out.GetOut() - in.GetIn())
+					c.itemsOut = append(c.itemsOut, item)
+
+					out.SetIn(in.GetIn())
+					out.SetOut(in.GetIn())
 					in.SetIn(0)
-					if out.GetDocument() != "" {
-						out.SetDocument(out.GetDocument() + ", ")
-					}
-					out.SetDocument(out.GetDocument() + in.GetDocument())
+					out.SetDocument(in.GetDocument())
 				}
 			}
 		}
 	}
 }
 
+func (c *CardMem) getDocumentDate(val string) (time.Time, error) {
+	pos := strings.LastIndex(val, "от")
+	if pos == -1 {
+		return time.Time{}, errors.New("no date")
+	}
+	dateStr := val[pos:]
+	dateStr = strings.TrimSpace(strings.Split(dateStr, " ")[1])
+	return time.Parse("02.01.2006", dateStr)
+}
+
 func (c *CardMem) simplifyDocument(val string) string {
+	val = strings.ToLower(val)
 	start := strings.Index(val, repDocB)
 	if start == -1 {
 		return ""
@@ -252,74 +307,134 @@ func (c *CardMem) simplifyPosition(val string) string {
 	if strings.Contains(ret, "\n") {
 		ret = ret[:strings.Index(ret, "\n")]
 	}
-	//проверим резистор, особенная обработка
-	if strings.Contains(ret, "резистор") {
-		start := strings.Index(ret, "(")
-		stop := strings.Index(ret, ")")
-		if start < stop {
-			ret = ret[start+1 : stop]
-		} else {
-			ret = strings.ReplaceAll(ret, "резистор", "")
-		}
-	} else {
-		//удалим реперные слова
-		for _, word := range elements {
-			if strings.Contains(ret, word) {
-				ret = strings.ReplaceAll(ret, word, "")
-			}
-		}
-	}
+
 	ret = strings.TrimSpace(ret)
 	return ret
 }
 
 func (c *CardMem) GetItemIn(idx int) *ItemMem {
-	item, ok := c.itemsIn[idx]
-	if ok {
-		return item
+	if idx > -1 && idx < len(c.itemsIn) {
+		return c.itemsIn[idx]
 	} else {
 		return nil
 	}
 }
 
 func (c *CardMem) GetItemOut(idx int) *ItemMem {
-	item, ok := c.itemsOut[idx]
-	if ok {
-		return item
+	if idx > -1 && idx < len(c.itemsOut) {
+		return c.itemsOut[idx]
 	} else {
 		return nil
 	}
 }
 
 func (c *CardMem) HasItemOut(doc string, position string) int {
-	var docS string
-	attempt := 0
-	for attempt < 2 {
-		if attempt == 0 {
-			docS = doc
-		} else if attempt == 1 {
-			docS = strings.ReplaceAll(strings.ReplaceAll(docS, " ", ""), "-", "")
-		}
+	//упростим поисковую строку до нескольких вариантов
+	var val []string
+	val = append(val, strings.ToLower(doc))
+	val = append(val, strings.ReplaceAll(val[0], " ", ""))
+	val = append(val, strings.ReplaceAll(val[1], "-", ""))
 
-		for i, val := range c.itemsOut {
-			if val.GetOut() == 0 {
-				continue
-			}
-			var docD string
-			if attempt == 0 {
-				docD = val.document
-			} else if attempt == 1 {
-				docD = strings.ReplaceAll(strings.ReplaceAll(docD, " ", ""), "-", "")
-			}
-			if strings.Contains(docS, docD) {
-				find := strings.ReplaceAll(strings.ToLower(position), " ", "")
-				//fmt.Println(find + "\t" + val.position)
-				if strings.Contains(find, val.position) {
-					return i
+	for i, item := range c.itemsOut {
+		if item.GetOut() == 0 || item.document == "" {
+			continue
+		}
+		var dict []string
+		dict = append(dict, item.document)
+		dict = append(dict, strings.ReplaceAll(dict[0], " ", ""))
+		dict = append(dict, strings.ReplaceAll(dict[1], "-", ""))
+
+		for _, v := range val {
+			for _, d := range dict {
+				if strings.Contains(v, d) {
+					if c.checkPosition(position, item.position) {
+						return i
+					}
 				}
 			}
 		}
-		attempt++
 	}
 	return -1
+}
+
+func (c *CardMem) GetMissing() ItemsArray {
+	var items ItemsArray
+	for _, item := range c.itemsOut {
+		if item.GetOut() != 0 &&
+			item.document != "" {
+
+			tmp := item.GetDocument()
+			tmp = strings.ReplaceAll(tmp, " ", "")
+			tmp = strings.ReplaceAll(tmp, "-", "")
+			item.SetDocument(tmp)
+			item.SetComment(item.GetPosition())
+			item.SetPosition(RemeoveElements(item.GetPosition()))
+			items = append(items, item)
+		}
+	}
+	return items
+}
+
+func (c *CardMem) getDict(position string) []string {
+	var dict []string
+	position = strings.ToLower(position)
+	dict = append(dict, position)
+	tmp := dict[0]
+	if strings.Contains(position, " ") {
+		tmp = strings.ReplaceAll(tmp, " ", "")
+		dict = append(dict, tmp)
+	}
+	if strings.Contains(position, "-") {
+		tmp = strings.ReplaceAll(dict[0], " ", strings.ReplaceAll(tmp, "-", ""))
+		dict = append(dict, tmp)
+	}
+	if strings.Contains(position, ".") {
+		tmp = strings.ReplaceAll(tmp, ".", "")
+		dict = append(dict, tmp)
+	}
+	if strings.Contains(position, ",") {
+		tmp = strings.ReplaceAll(tmp, ",", "")
+		dict = append(dict, tmp)
+	}
+
+	if strings.Contains(position, "резистор") || strings.Contains(position, "конденсатор") {
+		tmp := position
+		start := strings.Index(tmp, "(")
+		stop := strings.Index(tmp, ")")
+		if start < stop {
+			tmp = tmp[start+1 : stop]
+		} else {
+			tmp = strings.ReplaceAll(tmp, "резистор", "")
+		}
+		dict = append(dict, strings.TrimSpace(tmp))
+	} else {
+		//удалим реперные слова
+		tmp := position
+		for _, word := range Elements {
+			if strings.Contains(tmp, word) {
+				tmp = strings.ReplaceAll(tmp, word, "")
+				tmp = strings.ReplaceAll(tmp, " ", "")
+				tmp = strings.ReplaceAll(tmp, ".", "")
+				tmp = strings.ReplaceAll(tmp, ",", "")
+				tmp = strings.ReplaceAll(tmp, "-", "")
+				dict = append(dict, tmp)
+				break
+			}
+		}
+	}
+	return dict
+}
+
+func (c *CardMem) checkPosition(position string, str string) bool {
+	val := c.getDict(position)
+	dict := c.getDict(str)
+
+	for _, v := range val {
+		for _, d := range dict {
+			if strings.Contains(v, d) || strings.Contains(d, v) {
+				return true
+			}
+		}
+	}
+	return false
 }

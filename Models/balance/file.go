@@ -3,15 +3,23 @@ package balance
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/xuri/excelize/v2"
 )
 
+type ItemsArray []*ItemMem
+
+func (a ItemsArray) Len() int           { return len(a) }
+func (a ItemsArray) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ItemsArray) Less(i, j int) bool { return a[i].GetDate().Before(a[j].GetDate()) }
+
 type BalanceMem struct {
 	fileName string
-	items    map[int]*ItemMem
+	state    BalanceState
+	items    ItemsArray
 }
 
 type Balance interface {
@@ -20,17 +28,31 @@ type Balance interface {
 	findField(field string, row int, f *excelize.File) int
 	findRow(f *excelize.File) int
 	GetItem(idx int) *ItemMem
-
+	SortByDate()
 	Save(fileName string) error
+	SetState(state BalanceState)
+	GetState() BalanceState
+
 	makeHeader(sheet string, f *excelize.File)
 	saveData(sheet string, f *excelize.File)
 }
 
 func NewBalance() *BalanceMem {
 	return &BalanceMem{
-		fileName: "",
-		items:    make(map[int]*ItemMem),
+		state: IsEmpty,
 	}
+}
+
+func (b *BalanceMem) SetState(state BalanceState) {
+	b.state = state
+}
+
+func (b *BalanceMem) GetState() BalanceState {
+	return b.state
+}
+
+func (b *BalanceMem) AddItem(item *ItemMem) {
+	b.items = append(b.items, item)
 }
 
 func (b *BalanceMem) findField(field string, row int, f *excelize.File) int {
@@ -74,23 +96,59 @@ func (b *BalanceMem) GetItemsCount() int {
 
 func (b *BalanceMem) makeHeader(sheet string, f *excelize.File) {
 
-	f.SetCellValue(sheet, "A1", fldBill)
-	f.SetCellValue(sheet, "B1", fldName)
-	f.SetCellValue(sheet, "C1", fldRest+fldPerEnd)
-	f.SetCellValue(sheet, "D1", fldCount+fldPerEnd)
-	f.SetCellValue(sheet, "E1", "Списание")
-	f.SetCellValue(sheet, "F1", "Остаток после списания")
-	f.SetCellValue(sheet, "G1", fldDesc)
-	f.SetCellValue(sheet, "H1", "Документ")
-	f.SetCellValue(sheet, "I1", "Статус")
-	f.SetCellValue(sheet, "J1", "Примечание")
+	row := 1
+	col := 1
+	cell, _ := excelize.CoordinatesToCellName(col, row)
+	f.SetCellValue(sheet, cell, fldBill)
+	col++
+	cell, _ = excelize.CoordinatesToCellName(col, row)
+	f.SetCellValue(sheet, cell, fldName)
+	col++
+	cell, _ = excelize.CoordinatesToCellName(col, row)
+	f.SetCellValue(sheet, cell, fldRest+fldPerEnd)
+	col++
+	cell, _ = excelize.CoordinatesToCellName(col, row)
+	f.SetCellValue(sheet, cell, fldCount+fldPerEnd)
+
+	var beginCol string
+	var endCol string
+	if b.state == IsMergeV2 {
+		col++
+		cell, _ = excelize.CoordinatesToCellName(col, row)
+		f.SetCellValue(sheet, cell, "Списание")
+		col++
+		cell, _ = excelize.CoordinatesToCellName(col, row)
+		f.SetCellValue(sheet, cell, "Остаток после списания")
+	}
+	col++
+	cell, _ = excelize.CoordinatesToCellName(col, row)
+	f.SetCellValue(sheet, cell, fldDesc)
+	if b.state == IsMergeV2 {
+		col++
+		cell, _ = excelize.CoordinatesToCellName(col, row)
+		f.SetCellValue(sheet, cell, fldDesc+"(Карточка)")
+		beginCol = "G"
+		endCol = "I"
+	} else {
+		beginCol = "E"
+		endCol = "F"
+	}
+	col++
+	cell, _ = excelize.CoordinatesToCellName(col, row)
+	f.SetCellValue(sheet, cell, "Документ")
+	col++
+	cell, _ = excelize.CoordinatesToCellName(col, row)
+	f.SetCellValue(sheet, cell, "Статус")
+	col++
+	cell, _ = excelize.CoordinatesToCellName(col, row)
+	f.SetCellValue(sheet, cell, "Примечание")
 
 	style, _ := f.NewStyle(`{"alignment":{"horizontal":"center"},"font":{"bold":true}}`)
 	f.SetRowStyle(sheet, 1, 1, style)
-	f.SetColWidth(sheet, "A", "J", 16)
-	f.SetColWidth(sheet, "C", "D", 32)
-	f.SetColWidth(sheet, "G", "H", 60)
 
+	f.SetColWidth(sheet, "A", "K", 16)
+	f.SetColWidth(sheet, "C", "D", 32)
+	f.SetColWidth(sheet, beginCol, endCol, 46)
 }
 
 func (b *BalanceMem) Save(fileName string) error {
@@ -120,18 +178,50 @@ func (b *BalanceMem) saveData(sheet string, f *excelize.File) {
 		f.SetCellValue(sheet, "B"+strconv.Itoa(row), val.name)
 		f.SetCellValue(sheet, "C"+strconv.Itoa(row), val.rest)
 		f.SetCellValue(sheet, "D"+strconv.Itoa(row), val.count)
-		f.SetCellValue(sheet, "E"+strconv.Itoa(row), val.spent)
-		formula := "D" + strconv.Itoa(row) + "-E" + strconv.Itoa(row)
-		f.SetCellFormula(sheet, "F"+strconv.Itoa(row), formula)
-		f.SetCellValue(sheet, "G"+strconv.Itoa(row), val.description)
-		f.SetCellValue(sheet, "H"+strconv.Itoa(row), val.document)
-		f.SetCellValue(sheet, "I"+strconv.Itoa(row), val.statusToStr())
+
+		var cell string
+		col := 5
+		var colStat string
+		var colComment string
+		if b.state == IsMergeV2 {
+			f.SetCellValue(sheet, "E"+strconv.Itoa(row), val.spent)
+			if val.spent == 0 {
+				style, _ := f.NewStyle(&excelize.Style{
+					Fill: excelize.Fill{Type: "pattern", Color: []string{"#FF0033"}, Pattern: 1},
+				})
+				f.SetCellStyle(sheet, "E"+strconv.Itoa(row), "F"+strconv.Itoa(row), style)
+			}
+			formula := "D" + strconv.Itoa(row) + "-E" + strconv.Itoa(row)
+			f.SetCellFormula(sheet, "F"+strconv.Itoa(row), formula)
+			col = 7
+		}
+
+		cell, _ = excelize.CoordinatesToCellName(col, row)
+		f.SetCellValue(sheet, cell, val.description)
+		col++
+		if b.state == IsMergeV2 {
+			cell, _ = excelize.CoordinatesToCellName(col, row)
+			f.SetCellValue(sheet, cell, val.position)
+			col++
+			colStat = "J"
+			colComment = "K"
+		} else {
+			colStat = "G"
+			colComment = "H"
+		}
+		cell, _ = excelize.CoordinatesToCellName(col, row)
+		f.SetCellValue(sheet, cell, val.document)
+
+		col++
+		cell, _ = excelize.CoordinatesToCellName(col, row)
+		f.SetCellValue(sheet, cell, val.statusToStr())
 		style, _ := f.NewStyle(&excelize.Style{
 			Fill: excelize.Fill{Type: "pattern", Color: []string{val.statusToColor()}, Pattern: 1},
 		})
-		f.SetCellStyle(sheet, "I"+strconv.Itoa(row), "I"+strconv.Itoa(row), style)
-		f.SetCellValue(sheet, "J"+strconv.Itoa(row), val.comment)
+		f.SetCellStyle(sheet, colStat+strconv.Itoa(row), colStat+strconv.Itoa(row), style)
+		f.SetCellValue(sheet, colComment+strconv.Itoa(row), val.comment)
 	}
+
 	formula := "sum(D2:D" + strconv.Itoa(row) + ")"
 	f.SetCellFormula(sheet, "D"+strconv.Itoa(row+1), formula)
 
@@ -225,7 +315,7 @@ func (b *BalanceMem) LoadFromFile(fileName string) error {
 				continue
 			}
 			item.SetRest(rest)
-			b.items[b.GetItemsCount()] = item
+			b.items = append(b.items, item)
 			i = 1
 		}
 	}
@@ -237,10 +327,13 @@ func (b *BalanceMem) LoadFromFile(fileName string) error {
 }
 
 func (b *BalanceMem) GetItem(idx int) *ItemMem {
-	item, ok := b.items[idx]
-	if ok {
-		return item
+	if idx > -1 && idx < len(b.items) {
+		return b.items[idx]
 	} else {
 		return nil
 	}
+}
+
+func (b *BalanceMem) SortByDate() {
+	sort.Sort(b.items)
 }

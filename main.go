@@ -13,7 +13,9 @@ import (
 )
 
 var src Models.Sources
-var ap fyne.App
+
+var ap = app.New()
+
 var mainWindow fyne.Window
 
 var pbJournal = widget.ProgressBar{
@@ -42,20 +44,6 @@ var cbAutoSave = widget.Check{
 	Text: "Автосохранение",
 }
 
-//buttonTitle := "Disable"
-//button := widget.NewButton(buttonTitle, nil)
-//changeButton := func() {
-//	// here could be your logic
-//	// how to disable/enable button
-//	if button.Text == "Disable" {
-//		buttonTitle = "Enable"
-//		//button.Disable()
-//	}
-//	button.SetText(buttonTitle)
-//	button.Refresh()
-//}
-//button.OnTapped = changeButton
-
 var btnSave = widget.Button{
 	Text:          "Сохранить...",
 	Icon:          theme.DocumentSaveIcon(),
@@ -77,11 +65,13 @@ var onSaveTapped = func() {
 }
 
 func main() {
+	//src.Card = "/Users/Sur0vy/Карточка счета 10 за 01.01.2020 - 24.08.2022.xlsx"
+	//src.Journal = "/Users/Sur0vy/краснополь списание ЖЛ.xlsx"
+	//src.Balance = "/Users/Sur0vy/краснополь списание.xlsx"
 	run()
 }
 
 func run() {
-	ap = app.New()
 	mainWindow = ap.NewWindow("Списание V2.0")
 	initGUI(mainWindow)
 	mainWindow.ShowAndRun()
@@ -139,7 +129,6 @@ func processDocuments() {
 			}
 		}
 	}
-	close(ans)
 
 	if processDone {
 		lbMessage.SetText("Обработка данных выполнена успешно!")

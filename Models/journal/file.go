@@ -176,7 +176,9 @@ func (j *JournalMem) GetItem(idx int) *ItemMem {
 
 func (j *JournalMem) HasItem(name string, rest float64) (Models.ItemState, []int) {
 	indexes := []int{}
-	for i, val := range j.items {
+	//for i, val := range j.items {
+	for i := 0; i < j.GetItemsCount()-1; i++ {
+		val := j.GetItem(i)
 		if strings.Contains(val.GetDescription(), name) {
 			if val.GetAmount() == rest {
 				indexes = nil

@@ -1,5 +1,13 @@
 package balance
 
+type BalanceState int
+
+const (
+	IsEmpty BalanceState = iota
+	IsMergeV1
+	IsMergeV2
+)
+
 const (
 	fldBill   string = "Счет"
 	fldName   string = "Артикул"

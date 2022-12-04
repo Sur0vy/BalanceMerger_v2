@@ -1,6 +1,10 @@
 package balance
 
-import "BM/Models"
+import (
+	"time"
+
+	"BM/Models"
+)
 
 type ItemMem struct {
 	rest        float64
@@ -11,7 +15,10 @@ type ItemMem struct {
 	count       int
 	comment     string
 	spent       int
+	parent      *ItemMem
+	date        time.Time
 	state       Models.ItemState
+	position    string
 }
 
 type Item interface {
@@ -31,9 +38,13 @@ type Item interface {
 	SetCount(val int)
 	GetSpent() int
 	SetSpent(val int)
+	GetDate() time.Time
+	SetDate(val time.Time)
 	GetState() Models.ItemState
 	SetState(val Models.ItemState)
 	Equal(val *ItemMem) bool
+	GetPosition() string
+	SetPosition(val string)
 }
 
 func NewItem() *ItemMem {
@@ -159,4 +170,28 @@ func (i *ItemMem) GetComment() string {
 
 func (i *ItemMem) SetComment(val string) {
 	i.comment = val
+}
+
+func (i *ItemMem) GetDate() time.Time {
+	return i.date
+}
+
+func (i *ItemMem) SetDate(val time.Time) {
+	i.date = val
+}
+
+func (i *ItemMem) GetParent() *ItemMem {
+	return i.parent
+}
+
+func (i *ItemMem) SetParent(val *ItemMem) {
+	i.parent = val
+}
+
+func (i *ItemMem) GetPosition() string {
+	return i.position
+}
+
+func (i *ItemMem) SetPosition(val string) {
+	i.position = val
 }

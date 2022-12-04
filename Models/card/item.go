@@ -1,11 +1,14 @@
 package card
 
+import "time"
+
 type ItemMem struct {
 	document string
+	date     time.Time
 	position string
 	in       int
 	out      int
-	//isAdded  bool
+	comment  string
 }
 
 type Item interface {
@@ -18,14 +21,14 @@ type Item interface {
 	SetPosition(val string)
 	GetDocument() string
 	SetDocument(val string)
-	//GetIsAdded() bool
-	//SetIsAdded(val bool)
+	GetDate() time.Time
+	SetDate(val time.Time)
+	GetComment() string
+	SetComment(val string)
 }
 
 func NewItem() *ItemMem {
-	return &ItemMem{
-		//isAdded: false,
-	}
+	return &ItemMem{}
 }
 
 func (i *ItemMem) GetIn() int {
@@ -72,10 +75,18 @@ func (i *ItemMem) GetNeed() int {
 	return i.GetOut() - i.GetIn()
 }
 
-//func (i *ItemMem) SetIsAdded(val bool) {
-//	i.isAdded = val
-//}
-//
-//func (i *ItemMem) GetIsAdded() bool {
-//	return i.isAdded
-//}
+func (i *ItemMem) GetDate() time.Time {
+	return i.date
+}
+
+func (i *ItemMem) SetDate(val time.Time) {
+	i.date = val
+}
+
+func (i *ItemMem) GetComment() string {
+	return i.comment
+}
+
+func (i *ItemMem) SetComment(val string) {
+	i.comment = val
+}
