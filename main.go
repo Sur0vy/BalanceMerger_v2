@@ -9,6 +9,7 @@ import (
 	"fyne.io/fyne/v2/storage"
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
+	"path/filepath"
 	"time"
 )
 
@@ -17,6 +18,8 @@ var src Models.Sources
 var ap = app.New()
 
 var mainWindow fyne.Window
+
+var currentDir string
 
 var pbJournal = widget.ProgressBar{
 	Min: 0,
@@ -55,10 +58,19 @@ var btnSave = widget.Button{
 var onSaveTapped = func() {
 	dlgSave := dialog.NewFileSave(func(r fyne.URIWriteCloser, _ error) {
 		if r != nil {
-			SaveMergedFile(r.URI().Path())
+			absMediaFile, _ := filepath.Abs(r.URI().Path())
+			SaveMergedFile(absMediaFile)
+			currentDir = filepath.Dir(absMediaFile)
 			btnSave.Disable()
 		}
 	}, mainWindow)
+
+	if currentDir != "" {
+		mfileURI := storage.NewFileURI(currentDir)
+		mfileLister, _ := storage.ListerForURI(mfileURI)
+		dlgSave.SetLocation(mfileLister)
+	}
+
 	dlgSave.SetFilter(storage.NewExtensionFileFilter([]string{".xlsx"}))
 	dlgSave.SetFileName(src.GetOutFileName(true))
 	dlgSave.Show()
@@ -151,10 +163,16 @@ func initGUI(w fyne.Window) {
 		dlgJournal := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
 				if r != nil {
-					src.Journal = r.URI().Path()
+					src.Journal, _ = filepath.Abs(r.URI().Path())
+					currentDir = filepath.Dir(src.Journal)
 					entJournal.SetText(src.Journal)
 				}
 			}, w)
+		if currentDir != "" {
+			mfileURI := storage.NewFileURI(currentDir)
+			mfileLister, _ := storage.ListerForURI(mfileURI)
+			dlgJournal.SetLocation(mfileLister)
+		}
 		dlgJournal.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
 		dlgJournal.Show()
@@ -171,10 +189,16 @@ func initGUI(w fyne.Window) {
 		dlgBalance := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
 				if r != nil {
-					src.Balance = r.URI().Path()
+					src.Balance, _ = filepath.Abs(r.URI().Path())
+					currentDir = filepath.Dir(src.Balance)
 					entBalance.SetText(src.Balance)
 				}
 			}, w)
+		if currentDir != "" {
+			mfileURI := storage.NewFileURI(currentDir)
+			mfileLister, _ := storage.ListerForURI(mfileURI)
+			dlgBalance.SetLocation(mfileLister)
+		}
 		dlgBalance.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
 		dlgBalance.Show()
@@ -191,12 +215,20 @@ func initGUI(w fyne.Window) {
 		dlgCard := dialog.NewFileOpen(
 			func(r fyne.URIReadCloser, _ error) {
 				if r != nil {
-					src.Card = r.URI().Path()
-					entCard.SetText(src.Card)
+					src.Card, _ = filepath.Abs(r.URI().Path())
+					currentDir = filepath.Dir(src.Card)
+					entBalance.SetText(src.Card)
 				}
 			}, w)
+		if currentDir != "" {
+			mfileURI := storage.NewFileURI(currentDir)
+			mfileLister, _ := storage.ListerForURI(mfileURI)
+			dlgCard.SetLocation(mfileLister)
+		}
+
 		dlgCard.SetFilter(
 			storage.NewExtensionFileFilter([]string{".xlsx"}))
+
 		dlgCard.Show()
 	})
 	btnCard.SetIcon(theme.FolderOpenIcon())

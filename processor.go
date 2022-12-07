@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -171,6 +172,7 @@ func StartProcess(src Models.Sources, ch chan response) {
 
 func SaveMergedFile(fileName string) {
 	if filepath.Ext(fileName) == "" {
+		os.Remove(fileName)
 		fileName += ".xlsx"
 	}
 	if output.Save(fileName) != nil {
@@ -322,19 +324,14 @@ func mergeV2(bl *balance.BalanceMem, crd *card.CardMem, ch chan int) {
 		}
 
 		for i := 0; i <= emptyBl.GetItemsCount()-1; i++ {
-			//cnt := 0
 			for j := 0; j <= emptyCr.Len()-1; j++ {
 				w := weights[i][j]
 				if w > max {
 					max = w
 					maxI = i
 					maxJ = j
-					//cnt++
 				}
 			}
-			//if cnt == 1 {
-			//	break
-			//}
 		}
 		if max == 0 {
 			break
