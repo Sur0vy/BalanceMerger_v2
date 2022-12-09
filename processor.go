@@ -338,14 +338,30 @@ func mergeV2(bl *balance.BalanceMem, crd *card.CardMem, ch chan int) {
 		}
 		b := emptyBl.GetItem(maxI)
 		ci := emptyCr[maxJ]
-		if ci.GetOut() <= b.GetParent().GetCount() {
-			b.GetParent().SetSpent(ci.GetOut())
-			ci.SetOut(0)
-		} else {
-			b.GetParent().SetSpent(b.GetParent().GetCount())
-			ci.SetOut(ci.GetOut() - b.GetParent().GetCount())
-		}
+		//if ci.GetOut() <= b.GetParent().GetCount() {
+		b.GetParent().SetSpent(ci.GetOut())
+		b.GetParent().SetAccuracy(1.0 - max)
+		ci.SetOut(0)
+
+		//for i := 0; i <= emptyBl.GetItemsCount()-1; i++ {
+		//	weights[i][maxJ] = 0.0
+		//}
+
+		//} else {
+		//	b.GetParent().SetSpent(b.GetParent().GetCount())
+		//	b.GetParent().SetAccuracy(max)
+		//	ci.SetOut(ci.GetOut() - b.GetParent().GetCount())
+
+		//for j := 0; j <= emptyCr.Len()-1; j++ {
+		//	weights[maxI][j] = 0.0
+		//}
+
+		//}
+		//if b.GetParent().GetPosition() != ci.GetComment() {
+		//	b.GetParent().SetPosition(b.GetParent().GetPosition() + ", " + ci.GetComment())
+		//}
 		b.GetParent().SetPosition(ci.GetComment())
+
 		for i := 0; i <= emptyBl.GetItemsCount()-1; i++ {
 			for j := 0; j <= emptyCr.Len()-1; j++ {
 				if i == maxI || j == maxJ {

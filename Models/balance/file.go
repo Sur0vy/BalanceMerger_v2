@@ -1,6 +1,7 @@
 package balance
 
 import (
+	"BM/Models"
 	"errors"
 	"fmt"
 	"sort"
@@ -187,7 +188,7 @@ func (b *BalanceMem) saveData(sheet string, f *excelize.File) {
 			f.SetCellValue(sheet, "E"+strconv.Itoa(row), val.spent)
 			if val.spent == 0 {
 				style, _ := f.NewStyle(&excelize.Style{
-					Fill: excelize.Fill{Type: "pattern", Color: []string{"#FF0033"}, Pattern: 1},
+					Fill: excelize.Fill{Type: "pattern", Color: []string{ColorFromStatus(Models.IsMissing)}, Pattern: 1},
 				})
 				f.SetCellStyle(sheet, "E"+strconv.Itoa(row), "F"+strconv.Itoa(row), style)
 			}
@@ -202,6 +203,12 @@ func (b *BalanceMem) saveData(sheet string, f *excelize.File) {
 		if b.state == IsMergeV2 {
 			cell, _ = excelize.CoordinatesToCellName(col, row)
 			f.SetCellValue(sheet, cell, val.position)
+
+			style, _ := f.NewStyle(&excelize.Style{
+				Fill: excelize.Fill{Type: "pattern", Color: []string{ColorFromMatchPers(val.GetAccuracy())}, Pattern: 1},
+			})
+			f.SetCellStyle(sheet, cell, cell, style)
+
 			col++
 			colStat = "J"
 			colComment = "K"

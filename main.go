@@ -82,7 +82,7 @@ func main() {
 }
 
 func run() {
-	mainWindow = ap.NewWindow("Списание V2.0")
+	mainWindow = ap.NewWindow("Списание V2.1")
 	initGUI(mainWindow)
 	mainWindow.ShowAndRun()
 }
@@ -217,7 +217,7 @@ func initGUI(w fyne.Window) {
 				if r != nil {
 					src.Card, _ = filepath.Abs(r.URI().Path())
 					currentDir = filepath.Dir(src.Card)
-					entBalance.SetText(src.Card)
+					entCard.SetText(src.Card)
 				}
 			}, w)
 		if currentDir != "" {

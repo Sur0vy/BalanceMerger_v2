@@ -19,6 +19,7 @@ type ItemMem struct {
 	date        time.Time
 	state       Models.ItemState
 	position    string
+	accuracy    float64
 }
 
 type Item interface {
@@ -45,6 +46,8 @@ type Item interface {
 	Equal(val *ItemMem) bool
 	GetPosition() string
 	SetPosition(val string)
+	GetAccuracy() float64
+	SetAccuracy(val float64)
 }
 
 func NewItem() *ItemMem {
@@ -74,18 +77,7 @@ func (i *ItemMem) statusToStr() string {
 }
 
 func (i *ItemMem) statusToColor() string {
-	switch i.state {
-	case Models.IsFound:
-		return "#90EE90"
-	case Models.IsCollect:
-		return "#32CD32"
-	case Models.IsMissing:
-		return "#FF0033"
-	case Models.IsCollectMissing:
-		return "#FFB6C1"
-	default:
-		return "#FFFF00"
-	}
+	return ColorFromStatus(i.state)
 }
 
 func (i *ItemMem) GetDescription() string {
@@ -137,6 +129,19 @@ func (i *ItemMem) SetSpent(val int) {
 		i.spent = val
 	} else {
 		i.spent = 0
+	}
+}
+
+func (i *ItemMem) GetAccuracy() float64 {
+	return i.accuracy
+}
+
+func (i *ItemMem) SetAccuracy(val float64) {
+	val *= 100
+	if val >= 0 {
+		i.accuracy = val
+	} else {
+		i.accuracy = 0
 	}
 }
 
@@ -194,4 +199,33 @@ func (i *ItemMem) GetPosition() string {
 
 func (i *ItemMem) SetPosition(val string) {
 	i.position = val
+}
+
+func ColorFromStatus(status Models.ItemState) string {
+	switch status {
+	case Models.IsFound:
+		return "#90EE90"
+	case Models.IsCollect:
+		return "#32CD32"
+	case Models.IsMissing:
+		return "#FF0033"
+	case Models.IsCollectMissing:
+		return "#FFB6C1"
+	default:
+		return "#FFFF00"
+	}
+}
+
+func ColorFromMatchPers(val float64) string {
+	if val < 15 {
+		return string(accMatch)
+	} else if val < 30 {
+		return string(accAlmost)
+	} else if val < 50 {
+		return string(accMayBe)
+	} else if val < 80 {
+		return string(accHardly)
+	} else {
+		return string(accDifferent)
+	}
 }

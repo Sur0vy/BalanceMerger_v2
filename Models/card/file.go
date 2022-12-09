@@ -171,7 +171,18 @@ func (c *CardMem) LoadFromFile(fileName string, ch chan int) {
 			if in {
 				c.itemsIn = append(c.itemsIn, item)
 			} else {
-				c.itemsOut = append(c.itemsOut, item)
+				find := false
+				for i, v := range c.itemsOut {
+					if v.document == item.document && v.position == item.position {
+						c.itemsOut[i].SetOut(v.GetOut() + item.GetOut())
+						find = true
+						item = nil
+						break
+					}
+				}
+				if !find {
+					c.itemsOut = append(c.itemsOut, item)
+				}
 			}
 			ch <- int(coeff * float64(row))
 		}

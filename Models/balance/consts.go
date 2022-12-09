@@ -18,3 +18,13 @@ const (
 
 	tryCnt = 10
 )
+
+type MatchStatusColor string
+
+const (
+	accMatch     MatchStatusColor = "ffffff" //совпадение 85%
+	accAlmost    MatchStatusColor = "c3f7c3" //совпадение 70%-85%
+	accMayBe     MatchStatusColor = "dfeb65" //совпадение 50%-70%
+	accHardly    MatchStatusColor = "e57a15" //совпадение 20%-50%
+	accDifferent MatchStatusColor = "e51515" //совпадение <20%
+)
