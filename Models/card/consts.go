@@ -71,5 +71,17 @@ func RemeoveElements(val string) string {
 	tmp = strings.ReplaceAll(tmp, ".", "")
 	tmp = strings.ReplaceAll(tmp, ",", "")
 	tmp = strings.ReplaceAll(tmp, "-", "")
+
+	start := strings.Index(tmp, "(")
+	stop := strings.Index(tmp, ")")
+	if start < stop {
+		s1 := tmp[ : start]
+		s2 := ""
+		if len(tmp)>stop {
+			s2 = tmp[stop+1 : len(tmp)]
+		}
+		tmp=s1+s2
+	}
+
 	return tmp
 }

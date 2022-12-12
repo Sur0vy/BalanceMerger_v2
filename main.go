@@ -1,7 +1,8 @@
 package main
 
 import (
-	"BM/Models"
+	"time"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
@@ -10,7 +11,8 @@ import (
 	"fyne.io/fyne/v2/theme"
 	"fyne.io/fyne/v2/widget"
 	"path/filepath"
-	"time"
+
+	"BM/Models"
 )
 
 var src Models.Sources
@@ -82,7 +84,7 @@ func main() {
 }
 
 func run() {
-	mainWindow = ap.NewWindow("Списание V2.1")
+	mainWindow = ap.NewWindow(AppName + "  V:" + Version)
 	initGUI(mainWindow)
 	mainWindow.ShowAndRun()
 }

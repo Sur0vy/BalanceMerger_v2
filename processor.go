@@ -1,18 +1,18 @@
 package main
 
 import (
-	"BM/Models"
-	"BM/Models/balance"
-	"BM/Models/card"
-	"BM/Models/journal"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"BM/Models"
+	"BM/Models/balance"
+	"BM/Models/card"
+	"BM/Models/journal"
 )
 
 type ResponseStep int
@@ -267,7 +267,7 @@ func mergeV2(bl *balance.BalanceMem, crd *card.CardMem, ch chan int) {
 				tmp = strings.ReplaceAll(tmp, ",", "")
 				tmp = strings.ReplaceAll(tmp, "-", "")
 				emptyItem.SetDocument(tmp)
-				//упростим насвание позиции
+				//упростим название позиции
 				emptyItem.SetDescription(card.RemeoveElements(bi.GetDescription()))
 				emptyBl.AddItem(emptyItem)
 			}
@@ -294,11 +294,11 @@ func mergeV2(bl *balance.BalanceMem, crd *card.CardMem, ch chan int) {
 		b := emptyBl.GetItem(i)
 		for j := 0; j <= emptyCr.Len()-1; j++ {
 			c := emptyCr[j]
-			if c.GetOut() == 0 || c.GetDocument() == "" {
+			if c.GetOut() == 0 || c.GetDocument() == "" || c.GetOut() > b.GetParent().GetCount() {
 				continue
 			}
 			if strings.Contains(b.GetDocument(), c.GetDocument()) {
-				w := getWeight(b.GetDescription(), c.GetPosition())
+				w := getWeight(c.GetPosition(), b.GetDescription())
 				weights[i][j] = w
 			}
 		}
@@ -338,28 +338,11 @@ func mergeV2(bl *balance.BalanceMem, crd *card.CardMem, ch chan int) {
 		}
 		b := emptyBl.GetItem(maxI)
 		ci := emptyCr[maxJ]
-		//if ci.GetOut() <= b.GetParent().GetCount() {
+
 		b.GetParent().SetSpent(ci.GetOut())
 		b.GetParent().SetAccuracy(1.0 - max)
 		ci.SetOut(0)
 
-		//for i := 0; i <= emptyBl.GetItemsCount()-1; i++ {
-		//	weights[i][maxJ] = 0.0
-		//}
-
-		//} else {
-		//	b.GetParent().SetSpent(b.GetParent().GetCount())
-		//	b.GetParent().SetAccuracy(max)
-		//	ci.SetOut(ci.GetOut() - b.GetParent().GetCount())
-
-		//for j := 0; j <= emptyCr.Len()-1; j++ {
-		//	weights[maxI][j] = 0.0
-		//}
-
-		//}
-		//if b.GetParent().GetPosition() != ci.GetComment() {
-		//	b.GetParent().SetPosition(b.GetParent().GetPosition() + ", " + ci.GetComment())
-		//}
 		b.GetParent().SetPosition(ci.GetComment())
 
 		for i := 0; i <= emptyBl.GetItemsCount()-1; i++ {
@@ -387,18 +370,6 @@ func getWeight(val string, dict string) float64 {
 			str = strings.Replace(str, string(v), "", 1)
 		}
 	}
-	w1 := float64(res) / float64(len(val))
 
-	res = 0
-	str = val
-	for _, v := range dict {
-		pos := strings.Index(str, string(v))
-		if pos != -1 {
-			res++
-			str = strings.Replace(str, string(v), "", 1)
-		}
-	}
-	w2 := float64(res) / float64(len(dict))
-	return math.Max(w1, w2)
-
+	return float64(res) / float64(len(dict))
 }
